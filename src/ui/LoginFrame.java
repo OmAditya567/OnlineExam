@@ -17,6 +17,7 @@ public class LoginFrame extends JFrame {
         setSize(380, 260);
         setLocationRelativeTo(null);
         setResizable(false);
+        Theme.frame(this);
 
         JLabel title = new JLabel("Online Exam System", SwingConstants.CENTER);
         title.setFont(new Font("SansSerif", Font.BOLD, 20));

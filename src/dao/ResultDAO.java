@@ -39,6 +39,38 @@ public class ResultDAO {
         return list;
     }
 
+    /** One row per student for the given exam: who has attempted it and who has not. */
+    public List<Object[]> getExamStatus(int examId) throws SQLException {
+        List<Object[]> list = new ArrayList<>();
+        String sql = "SELECT u.username, u.full_name, r.score, r.total, r.attempted_on, "
+                   + "(SELECT COUNT(*) FROM results x WHERE x.user_id = u.id AND x.exam_id = ?) AS attempts "
+                   + "FROM users u "
+                   + "LEFT JOIN results r ON r.id = "
+                   + "(SELECT MAX(y.id) FROM results y WHERE y.user_id = u.id AND y.exam_id = ?) "
+                   + "WHERE u.role = 'STUDENT' ORDER BY u.id";
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, examId);
+            ps.setInt(2, examId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int attempts = rs.getInt("attempts");
+                    boolean done = attempts > 0;
+                    Timestamp ts = rs.getTimestamp("attempted_on");
+                    list.add(new Object[]{
+                        rs.getString("username"),
+                        rs.getString("full_name"),
+                        done ? "Attempted" : "Not attempted",
+                        done ? rs.getInt("score") + " / " + rs.getInt("total") : "-",
+                        attempts,
+                        done && ts != null ? ts.toString() : "-"
+                    });
+                }
+            }
+        }
+        return list;
+    }
+
     public List<Object[]> getAllResults() throws SQLException {
         List<Object[]> list = new ArrayList<>();
         String sql = "SELECT u.username, u.full_name, e.title, r.score, r.total, r.attempted_on " +

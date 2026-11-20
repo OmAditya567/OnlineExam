@@ -41,6 +41,7 @@ public class ExamFrame extends JFrame {
         setTitle(exam.getTitle() + " - " + user.getFullName());
         setSize(760, 460);
         setLocationRelativeTo(null);
+        Theme.frame(this);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override public void windowClosing(WindowEvent e) {
@@ -55,7 +56,7 @@ public class ExamFrame extends JFrame {
         lblProgress.setFont(new Font("SansSerif", Font.BOLD, 15));
         lblTimer.setFont(new Font("Monospaced", Font.BOLD, 18));
         JPanel top = new JPanel(new BorderLayout());
-        top.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        top.setBorder(Theme.underlined(10, 15, 10, 15));
         top.add(lblProgress, BorderLayout.WEST);
         top.add(lblTimer, BorderLayout.EAST);
 
@@ -63,7 +64,8 @@ public class ExamFrame extends JFrame {
         lblQuestion.setFont(new Font("SansSerif", Font.BOLD, 16));
         JPanel center = new JPanel();
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-        center.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
+        center.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(10, 15, 10, 15), Theme.card(0, 18)));
         lblQuestion.setAlignmentX(Component.LEFT_ALIGNMENT);
         center.add(lblQuestion);
         center.add(Box.createVerticalStrut(20));
@@ -108,7 +110,9 @@ public class ExamFrame extends JFrame {
 
     private void updateTimerLabel() {
         lblTimer.setText(String.format("Time left: %02d:%02d", secondsLeft / 60, secondsLeft % 60));
-        lblTimer.setForeground(secondsLeft <= 60 ? Color.RED : Color.BLACK);
+        boolean low = secondsLeft <= 60;
+        lblTimer.setForeground(low ? Color.RED : Color.BLACK);
+        lblTimer.setBorder(Theme.pill(low ? Theme.RED : Theme.ORANGE));
     }
 
     private void saveCurrentAnswer() {

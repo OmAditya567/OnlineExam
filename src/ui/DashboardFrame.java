@@ -10,6 +10,7 @@ import model.Result;
 import model.User;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.SQLException;
@@ -44,12 +45,20 @@ public class DashboardFrame extends JFrame {
                 @Override public boolean isCellEditable(int r, int c) { return false; }
             };
 
+    private final DefaultComboBoxModel<Exam> statusExamModel = new DefaultComboBoxModel<>();
+    private final JLabel lblStatusSummary = new JLabel(" ");
+    private final DefaultTableModel statusTableModel =
+            new DefaultTableModel(new String[]{"Username", "Name", "Status", "Latest Score", "Attempts", "Last Attempt"}, 0) {
+                @Override public boolean isCellEditable(int r, int c) { return false; }
+            };
+
     public DashboardFrame(User user) {
         this.user = user;
         setTitle("Dashboard - " + user.getFullName() + " (" + user.getRole() + ")");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1000, 600);
         setLocationRelativeTo(null);
+        Theme.frame(this);
 
         JLabel welcome = new JLabel("Welcome, " + user.getFullName());
         welcome.setFont(new Font("SansSerif", Font.BOLD, 18));
@@ -58,8 +67,10 @@ public class DashboardFrame extends JFrame {
             new LoginFrame().setVisible(true);
             dispose();
         });
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        welcome.setForeground(Color.WHITE);
+        btnLogout.putClientProperty("variant", "ghost");
+        JPanel header = new Modern.GradientPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 20));
         header.add(welcome, BorderLayout.WEST);
         header.add(btnLogout, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
@@ -70,6 +81,7 @@ public class DashboardFrame extends JFrame {
             tabs.addTab("Manage Questions", buildQuestionViewPanel());
             tabs.addTab("All Student Results", buildAdminResultsPanel());
             tabs.addTab("Manage Students", buildManageStudentsPanel());
+            tabs.addTab("Exam Status", buildExamStatusPanel());
             reloadExams();
             loadQuestions();
             loadAdminResults();
@@ -81,6 +93,7 @@ public class DashboardFrame extends JFrame {
             loadResults();
         }
         add(tabs, BorderLayout.CENTER);
+        Modern.apply(getContentPane());
     }
 
 
@@ -291,6 +304,7 @@ public class DashboardFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Student added.");
                 txtUser.setText(""); txtPass.setText(""); txtName.setText("");
                 loadStudents();
+                loadExamStatus();
             } catch (SQLException ex) {
                 showDbError(ex);
             }
@@ -317,7 +331,8 @@ public class DashboardFrame extends JFrame {
                 try {
                     userDAO.deleteUser(sId);
                     loadStudents();
-                    loadAdminResults(); 
+                    loadAdminResults();
+                    loadExamStatus();
                 } catch (SQLException ex) {
                     showDbError(ex);
                 }
@@ -339,6 +354,55 @@ public class DashboardFrame extends JFrame {
         p.add(formPanel, BorderLayout.NORTH);
         p.add(tablePanel, BorderLayout.CENTER);
         return p;
+    }
+
+    private JPanel buildExamStatusPanel() {
+        JComboBox<Exam> cmbExam = new JComboBox<>(statusExamModel);
+        JButton btnRefresh = new JButton("Refresh");
+        cmbExam.addActionListener(e -> loadExamStatus());
+        btnRefresh.addActionListener(e -> loadExamStatus());
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        top.add(new JLabel("Exam:"));
+        top.add(cmbExam);
+        top.add(btnRefresh);
+        top.add(lblStatusSummary);
+
+        JTable table = new JTable(statusTableModel);
+        table.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                Component comp = super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                comp.setFont(comp.getFont().deriveFont(Font.BOLD));
+                if (!sel) comp.setForeground("Not attempted".equals(v) ? Theme.RED : new Color(0x2E7D32));
+                return comp;
+            }
+        });
+
+        JPanel p = new JPanel(new BorderLayout());
+        p.add(top, BorderLayout.NORTH);
+        p.add(new JScrollPane(table), BorderLayout.CENTER);
+        return p;
+    }
+
+    private void loadExamStatus() {
+        Exam exam = (Exam) statusExamModel.getSelectedItem();
+        statusTableModel.setRowCount(0);
+        if (exam == null) {
+            lblStatusSummary.setText(" ");
+            return;
+        }
+        try {
+            int done = 0;
+            for (Object[] row : resultDAO.getExamStatus(exam.getId())) {
+                statusTableModel.addRow(row);
+                if ("Attempted".equals(row[2])) done++;
+            }
+            int total = statusTableModel.getRowCount();
+            lblStatusSummary.setText(done + " of " + total + " attempted, " + (total - done) + " pending");
+        } catch (SQLException ex) {
+            showDbError(ex);
+        }
     }
 
     private void loadStudents() {
@@ -417,8 +481,10 @@ public class DashboardFrame extends JFrame {
     private void reloadExams() {
         try {
             examModel.removeAllElements();
+            statusExamModel.removeAllElements();
             for (Exam e : examDAO.getAllExams()) {
                 examModel.addElement(e);
+                statusExamModel.addElement(e);
             }
         } catch (SQLException ex) {
             showDbError(ex);
